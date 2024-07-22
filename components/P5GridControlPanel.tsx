@@ -1,4 +1,5 @@
 'use client';
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import p5 from 'p5';
 import { Slider } from "@/components/ui/slider";
@@ -9,7 +10,13 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 
-const P5GridControlPanel = () => {
+declare global {
+  interface Window {
+    p5: any;
+  }
+}
+
+const P5GridControlPanel: React.FC = () => {
   const [settings, setSettings] = useState({
     is3D: false,
     columns: 5,
@@ -28,8 +35,8 @@ const P5GridControlPanel = () => {
 
   const [currentSettings, setCurrentSettings] = useState(settings);
 
-  const canvasRef = useRef(null);
-  const p5InstanceRef = useRef(null);
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const p5InstanceRef = useRef<p5 | null>(null);
 
   const sketch = useCallback((p5: p5) => {
     p5.setup = () => {
@@ -104,7 +111,7 @@ const P5GridControlPanel = () => {
   useEffect(() => {
     const loadP5 = async () => {
       if (typeof window !== 'undefined') {
-        if (!window.p5) {
+        if (!(window as any).p5) {
           await new Promise((resolve) => {
             const script = document.createElement('script');
             script.src = 'https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.min.js';
@@ -115,7 +122,7 @@ const P5GridControlPanel = () => {
         if (p5InstanceRef.current) {
           p5InstanceRef.current.remove();
         }
-        p5InstanceRef.current = new window.p5(sketch, canvasRef.current);
+        p5InstanceRef.current = new (window as any).p5(sketch, canvasRef.current);
       }
     };
 
@@ -133,7 +140,7 @@ const P5GridControlPanel = () => {
       if (p5InstanceRef.current) {
         p5InstanceRef.current.remove();
       }
-      p5InstanceRef.current = new window.p5(sketch, canvasRef.current);
+      p5InstanceRef.current = new (window as any).p5(sketch, canvasRef.current);
       return { ...settings };
     });
   }, [settings, sketch]);
