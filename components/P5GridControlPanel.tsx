@@ -1,5 +1,6 @@
 'use client';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import p5 from 'p5';
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -30,7 +31,7 @@ const P5GridControlPanel = () => {
   const canvasRef = useRef(null);
   const p5InstanceRef = useRef(null);
 
-  const sketch = useCallback((p5) => {
+  const sketch = useCallback((p5: p5) => {
     p5.setup = () => {
       p5.createCanvas(400, 400, currentSettings.is3D ? p5.WEBGL : p5.P2D);
     };
