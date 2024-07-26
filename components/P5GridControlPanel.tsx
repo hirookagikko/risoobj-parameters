@@ -1,4 +1,5 @@
 'use client';
+declare const PTN: any;
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import p5 from 'p5';
@@ -93,7 +94,7 @@ const P5GridControlPanel: React.FC = () => {
       // p5.pattern ライブラリの確認と初期化
       if ((p5 as any).createPattern) {
         (p5 as any).createPattern();
-        ptnLibrary = (p5 as any).PTN;
+        ptnLibrary = (p5 as any).PTN || PTN;
       }
     };
 
