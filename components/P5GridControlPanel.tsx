@@ -21,6 +21,7 @@ const isPatternAvailable = (p5Instance: any): boolean => {
 declare global {
   interface Window {
     p5: any;
+    PTN: any;
   }
 }
 
