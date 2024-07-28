@@ -32,7 +32,7 @@ const P5GridControlPanel: React.FC = () => {
     columns: 5,
     rows: 5,
     shapeType: 'circle',
-    shapeSize: 30,
+    shapeSizePercent: 80,
     shapeColor: '#FF0000',
     strokeColor: '#000000',
     strokeWeight: 1,
@@ -117,13 +117,18 @@ const P5GridControlPanel: React.FC = () => {
 
       console.log(currentSettings);
 
+      const cellWidth = p5.width / currentSettings.columns;
+      const cellHeight = p5.height / currentSettings.rows;
+      const cellSize = Math.min(cellWidth, cellHeight);
+      const shapeSize = cellSize * (currentSettings.shapeSizePercent / 100);
+
       if (currentSettings.is3D) {
         // 3D モードの描画ロジック
         p5.rotateX(currentSettings.rotationX);
         p5.rotateY(currentSettings.rotationY);
         p5.rotateZ(currentSettings.rotationZ);
         
-        const spacing = 100;
+        const spacing = cellSize;
         const offset = -((Math.min(currentSettings.columns, currentSettings.rows) - 1) * spacing) / 2;
     
         for (let i = 0; i < currentSettings.columns; i++) {
@@ -143,13 +148,19 @@ const P5GridControlPanel: React.FC = () => {
             // 3D 図形の描画
             switch (currentSettings.shapeType) {
               case 'box':
-                p5.box(currentSettings.shapeSize, currentSettings.detailX, currentSettings.detailY);
+                p5.box(shapeSize, shapeSize, shapeSize);
                 break;
               case 'sphere':
-                p5.sphere(currentSettings.shapeSize / 2, currentSettings.detailX, currentSettings.detailY);
+                p5.sphere(shapeSize / 2, currentSettings.detailX, currentSettings.detailY);
                 break;
               case 'torus':
-                p5.torus(currentSettings.shapeSize / 2, currentSettings.shapeSize / 4, currentSettings.detailX, currentSettings.detailY);
+                p5.torus(shapeSize / 2, shapeSize / 4, currentSettings.detailX, currentSettings.detailY);
+                break;
+              case 'cylinder':
+                p5.cylinder(shapeSize / 2, shapeSize / 2, currentSettings.detailX, currentSettings.detailY);
+                break;
+              case 'cone':
+                p5.cone(shapeSize / 2, shapeSize, currentSettings.detailX, currentSettings.detailY);
                 break;
             }
             p5.pop();
@@ -220,30 +231,30 @@ const P5GridControlPanel: React.FC = () => {
             switch (currentSettings.shapeType) {
               case 'circle':
                 if (currentSettings.usePattern) {
-                  (p5 as any).ellipsePattern(0, 0, currentSettings.shapeSize, currentSettings.shapeSize);
+                  (p5 as any).ellipsePattern(0, 0, shapeSize, shapeSize);
                 } else {
-                  p5.ellipse(0, 0, currentSettings.shapeSize);
+                  p5.ellipse(0, 0, shapeSize);
                 }
                 break;
               case 'square':
                 if (currentSettings.usePattern) {
-                  (p5 as any).rectPattern(0, 0, currentSettings.shapeSize, currentSettings.shapeSize);
+                  (p5 as any).rectPattern(0, 0, shapeSize, shapeSize);
                 } else {
-                  p5.rect(0, 0, currentSettings.shapeSize, currentSettings.shapeSize);
+                  p5.rect(0, 0, shapeSize, shapeSize);
                 }
                 break;
               case 'triangle':
                 if (currentSettings.usePattern) {
                   (p5 as any).beginShapePattern();
-                  (p5 as any).vertexPattern(0, -currentSettings.shapeSize / 2);
-                  (p5 as any).vertexPattern(-currentSettings.shapeSize / 2, currentSettings.shapeSize / 2);
-                  (p5 as any).vertexPattern(currentSettings.shapeSize / 2, currentSettings.shapeSize / 2);
+                  (p5 as any).vertexPattern(0, -shapeSize / 2);
+                  (p5 as any).vertexPattern(-shapeSize / 2, shapeSize / 2);
+                  (p5 as any).vertexPattern(shapeSize / 2, shapeSize / 2);
                   (p5 as any).endShapePattern(p5.CLOSE);
                 } else {
                   p5.triangle(
-                    0, -currentSettings.shapeSize / 2,
-                    -currentSettings.shapeSize / 2, currentSettings.shapeSize / 2,
-                    currentSettings.shapeSize / 2, currentSettings.shapeSize / 2
+                    0, -shapeSize / 2,
+                    -shapeSize / 2, shapeSize / 2,
+                    shapeSize / 2, shapeSize / 2
                   );
                 }
                 break;
@@ -256,8 +267,8 @@ const P5GridControlPanel: React.FC = () => {
                 for (let i = 0;i<=currentSettings.zigzagvertices;i++) {
                   let angle = p5.map(i, 0, currentSettings.zigzagvertices, 0, 360);
                   let r = (i%2 == 0)?1:(1 - currentSettings.zigzagdepth / 100);
-                  let px = r / 2 * (currentSettings.shapeSize) * p5.cos(angle);
-                  let py = r / 2 * (currentSettings.shapeSize) * p5.sin(angle);
+                  let px = r / 2 * (shapeSize) * p5.cos(angle);
+                  let py = r / 2 * (shapeSize) * p5.sin(angle);
                   if (currentSettings.usePattern) {
                     (p5 as any).vertexPattern(px, py);
                   } else {
@@ -411,6 +422,8 @@ const P5GridControlPanel: React.FC = () => {
                     <SelectItem value="box">Box</SelectItem>
                     <SelectItem value="sphere">Sphere</SelectItem>
                     <SelectItem value="torus">Torus</SelectItem>
+                    <SelectItem value="cylinder">Cylinder</SelectItem>
+                    <SelectItem value="cone">Cone</SelectItem>
                   </>
                 ) : (
                   <>
@@ -426,14 +439,14 @@ const P5GridControlPanel: React.FC = () => {
           
           {/* 図形サイズ設定 */}
           <div className="space-y-2">
-            <Label htmlFor="shapeSize">Shape Size: {settings.shapeSize}</Label>
+            <Label htmlFor="shapeSize">Shape Size: {settings.shapeSizePercent}%</Label>
             <Slider
-              id="shapeSize"
-              min={10}
+              id="shapeSizePercent"
+              min={1}
               max={200}
               step={1}
-              value={[settings.shapeSize]}
-              onValueChange={(value) => setSettings(prev => ({ ...prev, shapeSize: value[0] }))}
+              value={[settings.shapeSizePercent]}
+              onValueChange={(value) => setSettings(prev => ({ ...prev, shapeSizePercent: value[0] }))}
             />
           </div>
 
