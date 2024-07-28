@@ -36,9 +36,13 @@ const P5GridControlPanel: React.FC = () => {
     shapeColor: '#FF0000',
     strokeColor: '#000000',
     strokeWeight: 1,
+    rotation2D: 0,
     rotationX: 0,
     rotationY: 0,
     rotationZ: 0,
+    individualRotationX: 0,
+    individualRotationY: 0,
+    individualRotationZ: 0,
     detailX: 24,
     detailY: 16,
 
@@ -89,7 +93,12 @@ const P5GridControlPanel: React.FC = () => {
 
     p5.setup = () => {
       // キャンバスの作成（2D または 3D）
-      p5.createCanvas(600, 600, currentSettings.is3D ? p5.WEBGL : p5.P2D);
+      const canvasParent = canvasRef.current;
+      if (canvasParent) {
+        const canvasWidth = canvasParent.offsetWidth;
+        const canvasHeight = canvasWidth; // 正方形のキャンバスを維持
+        p5.createCanvas(canvasWidth, canvasHeight, currentSettings.is3D ? p5.WEBGL : p5.P2D);
+      }
 
       // p5.pattern ライブラリの確認と初期化
       if ((p5 as any).createPattern) {
@@ -103,14 +112,16 @@ const P5GridControlPanel: React.FC = () => {
       p5.background(240);
       p5.noLoop();
       p5.angleMode(p5.DEGREES);
+      p5.rectMode(p5.CENTER);
+      p5.ellipseMode(p5.CENTER);
 
       console.log(currentSettings);
 
       if (currentSettings.is3D) {
         // 3D モードの描画ロジック
-        p5.rotateX(p5.radians(currentSettings.rotationX));
-        p5.rotateY(p5.radians(currentSettings.rotationY));
-        p5.rotateZ(p5.radians(currentSettings.rotationZ));
+        p5.rotateX(currentSettings.rotationX);
+        p5.rotateY(currentSettings.rotationY);
+        p5.rotateZ(currentSettings.rotationZ);
         
         const spacing = 100;
         const offset = -((Math.min(currentSettings.columns, currentSettings.rows) - 1) * spacing) / 2;
@@ -119,6 +130,12 @@ const P5GridControlPanel: React.FC = () => {
           for (let j = 0; j < currentSettings.rows; j++) {
             p5.push();
             p5.translate(i * spacing + offset, j * spacing + offset);
+
+            // 個別の図形に回転を適用
+            p5.rotateX(currentSettings.individualRotationX);
+            p5.rotateY(currentSettings.individualRotationY);
+            p5.rotateZ(currentSettings.individualRotationZ);
+
             p5.stroke(currentSettings.strokeColor);
             p5.strokeWeight(currentSettings.strokeWeight);
             p5.fill(currentSettings.shapeColor);
@@ -149,7 +166,8 @@ const P5GridControlPanel: React.FC = () => {
             const y = j * cellHeight + cellHeight / 2;
     
             p5.push();
-            p5.translate(x - currentSettings.shapeSize / 2, y - currentSettings.shapeSize / 2);
+            p5.translate(x, y);
+            p5.rotate(currentSettings.rotation2D);
     
             p5.stroke(currentSettings.strokeColor);
             p5.strokeWeight(currentSettings.strokeWeight);
@@ -202,9 +220,9 @@ const P5GridControlPanel: React.FC = () => {
             switch (currentSettings.shapeType) {
               case 'circle':
                 if (currentSettings.usePattern) {
-                  (p5 as any).ellipsePattern(currentSettings.shapeSize / 2, currentSettings.shapeSize / 2, currentSettings.shapeSize, currentSettings.shapeSize);
+                  (p5 as any).ellipsePattern(0, 0, currentSettings.shapeSize, currentSettings.shapeSize);
                 } else {
-                  p5.ellipse(currentSettings.shapeSize / 2, currentSettings.shapeSize / 2, currentSettings.shapeSize);
+                  p5.ellipse(0, 0, currentSettings.shapeSize);
                 }
                 break;
               case 'square':
@@ -217,15 +235,15 @@ const P5GridControlPanel: React.FC = () => {
               case 'triangle':
                 if (currentSettings.usePattern) {
                   (p5 as any).beginShapePattern();
-                  (p5 as any).vertexPattern(currentSettings.shapeSize / 2, 0);
-                  (p5 as any).vertexPattern(0, currentSettings.shapeSize);
-                  (p5 as any).vertexPattern(currentSettings.shapeSize, currentSettings.shapeSize);
+                  (p5 as any).vertexPattern(0, -currentSettings.shapeSize / 2);
+                  (p5 as any).vertexPattern(-currentSettings.shapeSize / 2, currentSettings.shapeSize / 2);
+                  (p5 as any).vertexPattern(currentSettings.shapeSize / 2, currentSettings.shapeSize / 2);
                   (p5 as any).endShapePattern(p5.CLOSE);
                 } else {
                   p5.triangle(
-                    currentSettings.shapeSize / 2, 0,
-                    0, currentSettings.shapeSize,
-                    currentSettings.shapeSize, currentSettings.shapeSize
+                    0, -currentSettings.shapeSize / 2,
+                    -currentSettings.shapeSize / 2, currentSettings.shapeSize / 2,
+                    currentSettings.shapeSize / 2, currentSettings.shapeSize / 2
                   );
                 }
                 break;
@@ -238,8 +256,8 @@ const P5GridControlPanel: React.FC = () => {
                 for (let i = 0;i<=currentSettings.zigzagvertices;i++) {
                   let angle = p5.map(i, 0, currentSettings.zigzagvertices, 0, 360);
                   let r = (i%2 == 0)?1:(1 - currentSettings.zigzagdepth / 100);
-                  let px = currentSettings.shapeSize / 2 + r / 2 * (currentSettings.shapeSize) * p5.cos(angle);
-                  let py = currentSettings.shapeSize / 2 + r / 2 * (currentSettings.shapeSize) * p5.sin(angle);
+                  let px = r / 2 * (currentSettings.shapeSize) * p5.cos(angle);
+                  let py = r / 2 * (currentSettings.shapeSize) * p5.sin(angle);
                   if (currentSettings.usePattern) {
                     (p5 as any).vertexPattern(px, py);
                   } else {
@@ -295,6 +313,25 @@ const P5GridControlPanel: React.FC = () => {
 
   }, [sketch]);
 
+  // リサイズ処理
+  useEffect(() => {
+    const handleResize = () => {
+      if (p5InstanceRef.current && canvasRef.current) {
+        const canvasParent = canvasRef.current;
+        const canvasWidth = canvasParent.offsetWidth;
+        const canvasHeight = canvasWidth;
+        p5InstanceRef.current.resizeCanvas(canvasWidth, canvasHeight);
+        p5InstanceRef.current.redraw(); // キャンバスを再描画
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
+
   // スケッチの更新関数
   const updateSketch = useCallback(() => {
     setCurrentSettings((prev) => {
@@ -310,21 +347,21 @@ const P5GridControlPanel: React.FC = () => {
   return (
     <div className="flex flex-col md:flex-row gap-4">
       {/* スケッチ表示エリア */}
-      <Card className="w-full md:w-1/2">
+      <Card className="w-full md:w-2/3">
         <CardHeader>
           <CardTitle>P5.js {currentSettings.is3D ? '3D' : '2D'} Sketch</CardTitle>
         </CardHeader>
         <CardContent>
-          <div ref={canvasRef}></div>
+          <div ref={canvasRef} className="w-full aspect-square"></div>
         </CardContent>
       </Card>
       
       {/* コントロールパネル */}
-      <Card className="w-full md:w-1/2">
+      <Card className="w-full md:w-1/3 flex flex-col h-[calc(100vh-2rem)]">
         <CardHeader>
           <CardTitle>Control Panel</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className="flex-grow overflow-y-auto space-y-6">
           {/* 3D モード切り替え */}
           <div className="flex items-center space-x-2">
             <Switch
@@ -400,6 +437,20 @@ const P5GridControlPanel: React.FC = () => {
             />
           </div>
 
+          {!settings.is3D && (
+            <div className="space-y-2">
+              <Label htmlFor="rotation2D">2D Rotation: {settings.rotation2D}°</Label>
+              <Slider
+                id="rotation2D"
+                min={0}
+                max={360}
+                step={1}
+                value={[settings.rotation2D]}
+                onValueChange={(value) => setSettings(prev => ({ ...prev, rotation2D: value[0] }))}
+              />
+            </div>
+          )}
+
           {/* Zigzag 固有の設定 */}
           {!settings.is3D && settings.shapeType === 'zigzag' && (
             <>
@@ -408,7 +459,7 @@ const P5GridControlPanel: React.FC = () => {
                 <Slider
                   id="zigzagdepth"
                   min={1}
-                  max={50}
+                  max={100}
                   step={1}
                   value={[settings.zigzagdepth]}
                   onValueChange={(value) => setSettings(prev => ({ ...prev, zigzagdepth: value[0] }))}
@@ -418,9 +469,9 @@ const P5GridControlPanel: React.FC = () => {
                 <Label htmlFor="zigzagvertices">Zigzag Vertices: {settings.zigzagvertices}</Label>
                 <Slider
                   id="zigzagvertices"
-                  min={3}
-                  max={50}
-                  step={1}
+                  min={4}
+                  max={100}
+                  step={2}
                   value={[settings.zigzagvertices]}
                   onValueChange={(value) => setSettings(prev => ({ ...prev, zigzagvertices: value[0] }))}
                 />
@@ -524,6 +575,40 @@ const P5GridControlPanel: React.FC = () => {
                   step={1}
                   value={[settings.detailY]}
                   onValueChange={(value) => setSettings(prev => ({ ...prev, detailY: value[0] }))}
+                />
+              </div>
+              {/* 個別の図形の回転設定 */}
+              <div className="space-y-2">
+                <Label htmlFor="individualRotationX">Individual Rotation X: {settings.individualRotationX}°</Label>
+                <Slider
+                  id="individualRotationX"
+                  min={0}
+                  max={360}
+                  step={1}
+                  value={[settings.individualRotationX]}
+                  onValueChange={(value) => setSettings(prev => ({ ...prev, individualRotationX: value[0] }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="individualRotationY">Individual Rotation Y: {settings.individualRotationY}°</Label>
+                <Slider
+                  id="individualRotationY"
+                  min={0}
+                  max={360}
+                  step={1}
+                  value={[settings.individualRotationY]}
+                  onValueChange={(value) => setSettings(prev => ({ ...prev, individualRotationY: value[0] }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="individualRotationZ">Individual Rotation Z: {settings.individualRotationZ}°</Label>
+                <Slider
+                  id="individualRotationZ"
+                  min={0}
+                  max={360}
+                  step={1}
+                  value={[settings.individualRotationZ]}
+                  onValueChange={(value) => setSettings(prev => ({ ...prev, individualRotationZ: value[0] }))}
                 />
               </div>
             </>
@@ -669,12 +754,12 @@ const P5GridControlPanel: React.FC = () => {
 
               {settings.patternType === 'stripeRadial' && (
                 <div className="space-y-2">
-                  <Label htmlFor="radialAngle">Radial Angle: {(settings.radialAngle * 180 / Math.PI).toFixed(2)}°</Label>
+                  <Label htmlFor="radialAngle">Radial Angle: {(settings.radialAngle).toFixed(2)}°</Label>
                   <Slider
                     id="radialAngle"
                     min={0}
-                    max={Math.PI}
-                    step={Math.PI / 180}
+                    max={180}
+                    step={1}
                     value={[settings.radialAngle]}
                     onValueChange={(value) => setSettings(prev => ({ ...prev, radialAngle: value[0] }))}
                   />
