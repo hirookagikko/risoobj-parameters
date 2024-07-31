@@ -13,6 +13,9 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 
+// カスタムコンポーネント
+
+
 // パターンが利用可能か確認するヘルパー関数
 const isPatternAvailable = (p5Instance: any): boolean => {
   return p5Instance && p5Instance.createPattern && p5Instance.PTN;
@@ -29,10 +32,20 @@ const P5GridControlPanel: React.FC = () => {
   // スケッチの設定を管理する state
   const [settings, setSettings] = useState({
     is3D: false,
+    useOrtho: false,
     columns: 5,
     rows: 5,
     shapeType: 'circle',
+    shapePolygonSides: 3,
+    shapePolygonRadius: 100,
     shapeSizePercent: 80,
+    shapeSizePercent3D: {
+      sphere: 80,
+      box: { width: 80, height: 80, depth: 80 },
+      torus: { radius: 80, tubeRadius: 20 },
+      cylinder: { radius: 80, height: 80 },
+      cone: { radius: 80, height: 80 }
+    },
     shapeColor: '#FF0000',
     strokeColor: '#000000',
     strokeWeight: 1,
@@ -72,6 +85,8 @@ const P5GridControlPanel: React.FC = () => {
     noiseScale: 0.5,
     zigzagvertices: 20,
     zigzagdepth: 10,
+    useCurveVertex: false,
+    curveVertexTightness: 0,
 
     // 既存のパターン関連の設定（必要に応じて調整）
     patternSize: 10, // 汎用的なサイズパラメータとして保持
@@ -98,6 +113,12 @@ const P5GridControlPanel: React.FC = () => {
         const canvasWidth = canvasParent.offsetWidth;
         const canvasHeight = canvasWidth; // 正方形のキャンバスを維持
         p5.createCanvas(canvasWidth, canvasHeight, currentSettings.is3D ? p5.WEBGL : p5.P2D);
+      }
+
+      if (currentSettings.is3D) {
+        if (currentSettings.useOrtho) {
+          p5.ortho(-p5.width / 2, p5.width / 2, -p5.height / 2, p5.height / 2, 0, 1000);
+        }
       }
 
       // p5.pattern ライブラリの確認と初期化
@@ -146,21 +167,26 @@ const P5GridControlPanel: React.FC = () => {
             p5.fill(currentSettings.shapeColor);
 
             // 3D 図形の描画
+            const scaleFactor = cellSize / 100;
             switch (currentSettings.shapeType) {
               case 'box':
-                p5.box(shapeSize, shapeSize, shapeSize);
+                const { width, height, depth } = currentSettings.shapeSizePercent3D.box;
+                p5.box(width * scaleFactor, height * scaleFactor, depth * scaleFactor);
                 break;
               case 'sphere':
-                p5.sphere(shapeSize / 2, currentSettings.detailX, currentSettings.detailY);
+                p5.sphere(currentSettings.shapeSizePercent3D.sphere * scaleFactor / 2, currentSettings.detailX, currentSettings.detailY);
                 break;
               case 'torus':
-                p5.torus(shapeSize / 2, shapeSize / 4, currentSettings.detailX, currentSettings.detailY);
+                const { radius, tubeRadius } = currentSettings.shapeSizePercent3D.torus;
+                p5.torus(radius * scaleFactor / 2, tubeRadius * scaleFactor / 2, currentSettings.detailX, currentSettings.detailY);
                 break;
               case 'cylinder':
-                p5.cylinder(shapeSize / 2, shapeSize / 2, currentSettings.detailX, currentSettings.detailY);
+                const { radius: cylRadius, height: cylHeight } = currentSettings.shapeSizePercent3D.cylinder;
+                p5.cylinder(cylRadius * scaleFactor / 2, cylHeight * scaleFactor, currentSettings.detailX, currentSettings.detailY);
                 break;
               case 'cone':
-                p5.cone(shapeSize / 2, shapeSize, currentSettings.detailX, currentSettings.detailY);
+                const { radius: coneRadius, height: coneHeight } = currentSettings.shapeSizePercent3D.cone;
+                p5.cone(coneRadius * scaleFactor / 2, coneHeight * scaleFactor, currentSettings.detailX, currentSettings.detailY);
                 break;
             }
             p5.pop();
@@ -243,42 +269,103 @@ const P5GridControlPanel: React.FC = () => {
                   p5.rect(0, 0, shapeSize, shapeSize);
                 }
                 break;
-              case 'triangle':
-                if (currentSettings.usePattern) {
-                  (p5 as any).beginShapePattern();
-                  (p5 as any).vertexPattern(0, -shapeSize / 2);
-                  (p5 as any).vertexPattern(-shapeSize / 2, shapeSize / 2);
-                  (p5 as any).vertexPattern(shapeSize / 2, shapeSize / 2);
-                  (p5 as any).endShapePattern(p5.CLOSE);
-                } else {
-                  p5.triangle(
-                    0, -shapeSize / 2,
-                    -shapeSize / 2, shapeSize / 2,
-                    shapeSize / 2, shapeSize / 2
-                  );
-                }
-                break;
-              case 'zigzag':
-                if (currentSettings.usePattern) {
+              case 'polygon':
+                const angle = 360 / settings.shapePolygonSides;
+                const radius = shapeSize * (settings.shapePolygonRadius / 100) / 2;
+                if (settings.usePattern) {
                   (p5 as any).beginShapePattern();
                 } else {
                   p5.beginShape();
                 }
-                for (let i = 0;i<=currentSettings.zigzagvertices;i++) {
-                  let angle = p5.map(i, 0, currentSettings.zigzagvertices, 0, 360);
-                  let r = (i%2 == 0)?1:(1 - currentSettings.zigzagdepth / 100);
-                  let px = r / 2 * (shapeSize) * p5.cos(angle);
-                  let py = r / 2 * (shapeSize) * p5.sin(angle);
-                  if (currentSettings.usePattern) {
-                    (p5 as any).vertexPattern(px, py);
-                  } else {
-                    p5.vertex(px, py);
+                
+                if (settings.useCurveVertex) {
+                  p5.curveTightness(settings.curveVertexTightness);
+                  // 0から始めて多く描画する
+                  for (let k = 0; k < settings.shapePolygonSides + 3; k++) {
+                    const index = k % settings.shapePolygonSides;
+                    const x = radius * p5.cos(angle * index - 90);
+                    const y = radius * p5.sin(angle * index - 90);
+                    if (settings.usePattern && (p5 as any).curveVertexPattern) {
+                      (p5 as any).curveVertexPattern(x, y);
+                    } else {
+                      p5.curveVertex(x, y);
+                    }
+                  }
+                } else {
+                  for (let k = 0; k < settings.shapePolygonSides; k++) {
+                    const x = radius * p5.cos(angle * k - 90);
+                    const y = radius * p5.sin(angle * k - 90);
+                    if (settings.usePattern) {
+                      (p5 as any).vertexPattern(x, y);
+                    } else {
+                      p5.vertex(x, y);
+                    }
                   }
                 }
-                if (currentSettings.usePattern) {
-                  (p5 as any).endShapePattern(p5.CLOSE);
+                
+                if (settings.usePattern) {
+                  if (settings.useCurveVertex) {
+                    (p5 as any).endShapePattern();
+                  } else {
+                    (p5 as any).endShapePattern(p5.CLOSE);
+                  }
                 } else {
-                  p5.endShape(p5.CLOSE);
+                  if (settings.useCurveVertex) {
+                    p5.endShape();
+                  } else {
+                    p5.endShape(p5.CLOSE);
+                  }
+                }
+                break;
+              
+              case 'zigzag':
+                if (settings.usePattern) {
+                  (p5 as any).beginShapePattern();
+                } else {
+                  p5.beginShape();
+                }
+                
+                if (settings.useCurveVertex) {
+                  p5.curveTightness(settings.curveVertexTightness);
+                  // 0から始めて多く描画する
+                  for (let k = 0; k < settings.zigzagvertices + 3; k++) {
+                    const index = k % settings.zigzagvertices;
+                    let angle = p5.map(index, 0, settings.zigzagvertices, 0, 360);
+                    let r = (index % 2 == 0) ? 1 : (1 - settings.zigzagdepth / 100);
+                    let px = r / 2 * (shapeSize) * p5.cos(angle);
+                    let py = r / 2 * (shapeSize) * p5.sin(angle);
+                    if (settings.usePattern && (p5 as any).curveVertexPattern) {
+                      (p5 as any).curveVertexPattern(px, py);
+                    } else {
+                      p5.curveVertex(px, py);
+                    }
+                  }
+                } else {
+                  for (let k = 0; k <= settings.zigzagvertices; k++) {
+                    let angle = p5.map(k, 0, settings.zigzagvertices, 0, 360);
+                    let r = (k % 2 == 0) ? 1 : (1 - settings.zigzagdepth / 100);
+                    let px = r / 2 * (shapeSize) * p5.cos(angle);
+                    let py = r / 2 * (shapeSize) * p5.sin(angle);
+                    if (settings.usePattern) {
+                      (p5 as any).vertexPattern(px, py);
+                    } else {
+                      p5.vertex(px, py);
+                    }
+                  }
+                }
+                
+                if (settings.usePattern) {
+                  if (settings.useCurveVertex) {
+                    (p5 as any).endShapePattern();
+                  } else {
+                    (p5 as any).endShapePattern(p5.CLOSE);
+                  }
+                } else {
+                  if (settings.useCurveVertex) {
+                    p5.endShape();
+                  } else {
+                    p5.endShape(p5.CLOSE);
+                  }
                 }
                 break;
             }
@@ -372,7 +459,7 @@ const P5GridControlPanel: React.FC = () => {
         <CardHeader>
           <CardTitle>Control Panel</CardTitle>
         </CardHeader>
-        <CardContent className="flex-grow overflow-y-auto space-y-6">
+        <CardContent className="flex-grow overflow-y-auto space-y-6 relative">
           {/* 3D モード切り替え */}
           <div className="flex items-center space-x-2">
             <Switch
@@ -382,6 +469,17 @@ const P5GridControlPanel: React.FC = () => {
             />
             <Label htmlFor="3d-mode">3D Mode</Label>
           </div>
+
+          {settings.is3D && (
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="ortho-mode"
+                checked={settings.useOrtho}
+                onCheckedChange={(checked) => setSettings(prev => ({ ...prev, useOrtho: checked }))}
+              />
+              <Label htmlFor="ortho-mode">Use Orthographic Projection</Label>
+            </div>
+          )}
 
           {/* 列数設定 */}
           <div className="space-y-2">
@@ -429,26 +527,163 @@ const P5GridControlPanel: React.FC = () => {
                   <>
                     <SelectItem value="circle">Circle</SelectItem>
                     <SelectItem value="square">Square</SelectItem>
-                    <SelectItem value="triangle">Triangle</SelectItem>
+                    <SelectItem value="polygon">Polygon</SelectItem>
                     <SelectItem value="zigzag">Zigzag</SelectItem>
                   </>
                 )}
               </SelectContent>
             </Select>
           </div>
-          
+               
           {/* 図形サイズ設定 */}
-          <div className="space-y-2">
-            <Label htmlFor="shapeSize">Shape Size: {settings.shapeSizePercent}%</Label>
-            <Slider
-              id="shapeSizePercent"
-              min={1}
-              max={200}
-              step={1}
-              value={[settings.shapeSizePercent]}
-              onValueChange={(value) => setSettings(prev => ({ ...prev, shapeSizePercent: value[0] }))}
-            />
-          </div>
+          {settings.is3D ? (
+            <>
+              {settings.shapeType === 'sphere' && (
+                <div className="space-y-2">
+                  <Label htmlFor="sphereSize">Sphere Size: {settings.shapeSizePercent3D.sphere}%</Label>
+                  <Slider
+                    id="sphereSize"
+                    min={1}
+                    max={200}
+                    step={1}
+                    value={[settings.shapeSizePercent3D.sphere]}
+                    onValueChange={(value) => setSettings(prev => ({
+                      ...prev,
+                      shapeSizePercent3D: { ...prev.shapeSizePercent3D, sphere: value[0] }
+                    }))}
+                  />
+                </div>
+              )}
+              {settings.shapeType === 'box' && (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="boxWidth">Box Width: {settings.shapeSizePercent3D.box.width}%</Label>
+                    <Slider
+                      id="boxWidth"
+                      min={1}
+                      max={200}
+                      step={1}
+                      value={[settings.shapeSizePercent3D.box.width]}
+                      onValueChange={(value) => setSettings(prev => ({
+                        ...prev,
+                        shapeSizePercent3D: { ...prev.shapeSizePercent3D, box: { ...prev.shapeSizePercent3D.box, width: value[0] } }
+                      }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="boxHeight">Box Height: {settings.shapeSizePercent3D.box.height}%</Label>
+                    <Slider
+                      id="boxHeight"
+                      min={1}
+                      max={200}
+                      step={1}
+                      value={[settings.shapeSizePercent3D.box.height]}
+                      onValueChange={(value) => setSettings(prev => ({
+                        ...prev,
+                        shapeSizePercent3D: { ...prev.shapeSizePercent3D, box: { ...prev.shapeSizePercent3D.box, height: value[0] } }
+                      }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="boxDepth">Box Depth: {settings.shapeSizePercent3D.box.depth}%</Label>
+                    <Slider
+                      id="boxDepth"
+                      min={1}
+                      max={200}
+                      step={1}
+                      value={[settings.shapeSizePercent3D.box.depth]}
+                      onValueChange={(value) => setSettings(prev => ({
+                        ...prev,
+                        shapeSizePercent3D: { ...prev.shapeSizePercent3D, box: { ...prev.shapeSizePercent3D.box, depth: value[0] } }
+                      }))}
+                    />
+                  </div>
+                </>
+              )}
+              {settings.shapeType === 'torus' && (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="torusRadius">Torus Radius: {settings.shapeSizePercent3D.torus.radius}%</Label>
+                    <Slider
+                      id="torusRadius"
+                      min={1}
+                      max={200}
+                      step={1}
+                      value={[settings.shapeSizePercent3D.torus.radius]}
+                      onValueChange={(value) => setSettings(prev => ({
+                        ...prev,
+                        shapeSizePercent3D: { ...prev.shapeSizePercent3D, torus: { ...prev.shapeSizePercent3D.torus, radius: value[0] } }
+                      }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="torusTubeRadius">Torus Tube Radius: {settings.shapeSizePercent3D.torus.tubeRadius}%</Label>
+                    <Slider
+                      id="torusTubeRadius"
+                      min={1}
+                      max={100}
+                      step={1}
+                      value={[settings.shapeSizePercent3D.torus.tubeRadius]}
+                      onValueChange={(value) => setSettings(prev => ({
+                        ...prev,
+                        shapeSizePercent3D: { ...prev.shapeSizePercent3D, torus: { ...prev.shapeSizePercent3D.torus, tubeRadius: value[0] } }
+                      }))}
+                    />
+                  </div>
+                </>
+              )}
+              {(settings.shapeType === 'cylinder' || settings.shapeType === 'cone') && (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor={`${settings.shapeType}Radius`}>{settings.shapeType === 'cylinder' ? 'Cylinder' : 'Cone'} Radius: {settings.shapeSizePercent3D[settings.shapeType].radius}%</Label>
+                    <Slider
+                      id={`${settings.shapeType}Radius`}
+                      min={1}
+                      max={200}
+                      step={1}
+                      value={[settings.shapeSizePercent3D[settings.shapeType].radius]}
+                      onValueChange={(value) => setSettings(prev => ({
+                        ...prev,
+                        shapeSizePercent3D: { 
+                          ...prev.shapeSizePercent3D, 
+                          [settings.shapeType]: { ...prev.shapeSizePercent3D[settings.shapeType], radius: value[0] } 
+                        }
+                      }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor={`${settings.shapeType}Height`}>{settings.shapeType === 'cylinder' ? 'Cylinder' : 'Cone'} Height: {settings.shapeSizePercent3D[settings.shapeType].height}%</Label>
+                    <Slider
+                      id={`${settings.shapeType}Height`}
+                      min={1}
+                      max={200}
+                      step={1}
+                      value={[settings.shapeSizePercent3D[settings.shapeType].height]}
+                      onValueChange={(value) => setSettings(prev => ({
+                        ...prev,
+                        shapeSizePercent3D: { 
+                          ...prev.shapeSizePercent3D, 
+                          [settings.shapeType]: { ...prev.shapeSizePercent3D[settings.shapeType], height: value[0] } 
+                        }
+                      }))}
+                    />
+                  </div>
+                </>
+              )}
+            </>
+          ) : (
+            <div className="space-y-2">
+              <Label htmlFor="shapeSize">Shape Size: {settings.shapeSizePercent}%</Label>
+              <Slider
+                id="shapeSizePercent"
+                min={1}
+                max={200}
+                step={1}
+                value={[settings.shapeSizePercent]}
+                onValueChange={(value) => setSettings(prev => ({ ...prev, shapeSizePercent: value[0] }))}
+              />
+            </div>
+          )}
 
           {!settings.is3D && (
             <div className="space-y-2">
@@ -489,6 +724,68 @@ const P5GridControlPanel: React.FC = () => {
                   onValueChange={(value) => setSettings(prev => ({ ...prev, zigzagvertices: value[0] }))}
                 />
               </div>
+            </>
+          )}
+
+          {/* Polygon 固有の設定 */}
+          {!settings.is3D && settings.shapeType === 'polygon' && (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="shapePolygonSides">Polygon Sides: {settings.shapePolygonSides}</Label>
+                <Slider
+                  id="shapePolygonSides"
+                  min={3}
+                  max={12}
+                  step={1}
+                  value={[settings.shapePolygonSides]}
+                  onValueChange={(value) => setSettings(prev => ({
+                    ...prev,
+                    shapePolygonSides: value[0]
+                  }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="shapePolygonRadius">Polygon Radius: {settings.shapePolygonRadius}%</Label>
+                <Slider
+                  id="shapePolygonRadius"
+                  min={10}
+                  max={200}
+                  step={1}
+                  value={[settings.shapePolygonRadius]}
+                  onValueChange={(value) => setSettings(prev => ({
+                    ...prev,
+                    shapePolygonRadius: value[0]
+                  }))}
+                />
+              </div>
+            </>
+          )}
+
+          {/* Curve Vertex オプション */}
+          {!settings.is3D && (settings.shapeType === 'polygon' || settings.shapeType === 'zigzag') && (
+            <>
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="use-curve-vertex"
+                  checked={settings.useCurveVertex}
+                  onCheckedChange={(checked) => setSettings(prev => ({ ...prev, useCurveVertex: checked }))}
+                />
+                <Label htmlFor="use-curve-vertex">Use Curve Vertex</Label>
+              </div>
+              
+              {settings.useCurveVertex && (
+                <div className="space-y-2">
+                  <Label htmlFor="curveVertexTightness">Curve Tightness: {settings.curveVertexTightness.toFixed(2)}</Label>
+                  <Slider
+                    id="curveVertexTightness"
+                    min={-10}
+                    max={10}
+                    step={0.1}
+                    value={[settings.curveVertexTightness]}
+                    onValueChange={(value) => setSettings(prev => ({ ...prev, curveVertexTightness: value[0] }))}
+                  />
+                </div>
+              )}
             </>
           )}
           
