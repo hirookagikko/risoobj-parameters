@@ -4,8 +4,6 @@ declare const PTN: any;
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import p5 from 'p5';
 
-type Shape3DType = 'sphere' | 'box' | 'torus' | 'cylinder' | 'cone';
-
 // shadcn/ui コンポーネントのインポート
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -16,7 +14,6 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 
 // カスタムコンポーネント
-
 
 // パターンが利用可能か確認するヘルパー関数
 const isPatternAvailable = (p5Instance: any): boolean => {
@@ -30,14 +27,83 @@ declare global {
   }
 }
 
+// Shape types
+type Shape2DType = 'circle' | 'square' | 'polygon' | 'zigzag';
+type Shape3DType = 'sphere' | 'box' | 'torus' | 'cylinder' | 'cone';
+type ShapeType = Shape2DType | Shape3DType;
+
+interface Shape3DSize {
+  sphere: number;
+  box: { width: number; height: number; depth: number };
+  torus: { radius: number; tubeRadius: number };
+  cylinder: { radius: number; height: number };
+  cone: { radius: number; height: number };
+}
+
 const P5GridControlPanel: React.FC = () => {
   // スケッチの設定を管理する state
-  const [settings, setSettings] = useState({
+  const [settings, setSettings] = useState<{
+    is3D: boolean;
+    useOrtho: boolean;
+    columns: number;
+    rows: number;
+    shapeType: ShapeType;
+    shapePolygonSides: number;
+    shapePolygonRadius: number;
+    shapeSizePercent: number;
+    shapeSizePercent3D: {
+      sphere: number;
+      box: { width: number; height: number; depth: number };
+      torus: { radius: number; tubeRadius: number };
+      cylinder: { radius: number; height: number };
+      cone: { radius: number; height: number };
+    };
+    shapeColor: string;
+    strokeColor: string;
+    strokeWeight: number;
+    rotation2D: number;
+    rotationX: number;
+    rotationY: number;
+    rotationZ: number;
+    individualRotationX: number;
+    individualRotationY: number;
+    individualRotationZ: number;
+    detailX: number;
+    detailY: number;
+    usePattern: boolean;
+    patternType: 'stripe' | 'stripeCircle' | 'stripePolygon' | 'stripeRadial' | 'wave' | 'dot' | 'checked' | 'cross' | 'triangle' | 'noise' | 'noiseGrad';
+    patternColorPalette: [string, string];
+    patternAngle: number;
+    stripeSize: number;
+    stripeCircleSize: number;
+    polygonSides: number;
+    polygonRadius: number;
+    radialAngle: number;
+    waveAmplitude: number;
+    waveFrequency: number;
+    wavePhase: number;
+    dotSize: number;
+    dotSpacing: number;
+    checkedSize: number;
+    checkedSpacing: number;
+    crossSize: number;
+    crossWeight: number;
+    triangleSize: number;
+    triangleSpacing: number;
+    noiseScale: number;
+    zigzagvertices: number;
+    zigzagdepth: number;
+    useCurveVertex: boolean;
+    curveVertexTightness: number;
+    patternSize: number;
+    patternWeight: number;
+    patternScale: number;
+  }>({
     is3D: false,
     useOrtho: false,
     columns: 5,
     rows: 5,
-    shapeType: 'circle' as 'circle' | 'square' | 'polygon' | 'zigzag' | Shape3DType,
+    shapeType: 'circle',
     shapePolygonSides: 3,
     shapePolygonRadius: 100,
     shapeSizePercent: 80,
@@ -60,14 +126,10 @@ const P5GridControlPanel: React.FC = () => {
     individualRotationZ: 0,
     detailX: 24,
     detailY: 16,
-
-    // pattern関連の設定
     usePattern: false,
-    patternType: 'stripe', // デフォルトのパターンタイプを 'stripe' に変更
+    patternType: 'stripe',
     patternColorPalette: ['#000000', '#0000F0'],
     patternAngle: 0,
-    
-    // 各パターンタイプに特有のパラメータ
     stripeSize: 20,
     stripeCircleSize: 20,
     polygonSides: 4,
@@ -89,9 +151,7 @@ const P5GridControlPanel: React.FC = () => {
     zigzagdepth: 10,
     useCurveVertex: false,
     curveVertexTightness: 0,
-
-    // 既存のパターン関連の設定（必要に応じて調整）
-    patternSize: 10, // 汎用的なサイズパラメータとして保持
+    patternSize: 10,
     patternWeight: 1,
     patternScale: 1,
   });
@@ -512,7 +572,10 @@ const P5GridControlPanel: React.FC = () => {
           {/* 図形タイプ選択 */}
           <div className="space-y-2">
             <Label htmlFor="shapeType">Shape Type</Label>
-            <Select value={settings.shapeType} onValueChange={(value) => setSettings(prev => ({ ...prev, shapeType: value }))}>
+            <Select 
+              value={settings.shapeType} 
+              onValueChange={(value: ShapeType) => setSettings(prev => ({ ...prev, shapeType: value }))}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Select shape type" />
               </SelectTrigger>
@@ -637,7 +700,9 @@ const P5GridControlPanel: React.FC = () => {
               {(settings.shapeType === 'cylinder' || settings.shapeType === 'cone') && (
                 <>
                   <div className="space-y-2">
-                    <Label htmlFor={`${settings.shapeType}Radius`}>{settings.shapeType === 'cylinder' ? 'Cylinder' : 'Cone'} Radius: {settings.shapeSizePercent3D[settings.shapeType].radius}%</Label>
+                    <Label htmlFor={`${settings.shapeType}Radius`}>
+                      {settings.shapeType === 'cylinder' ? 'Cylinder' : 'Cone'} Radius: {settings.shapeSizePercent3D[settings.shapeType].radius}%
+                    </Label>
                     <Slider
                       id={`${settings.shapeType}Radius`}
                       min={1}
@@ -646,15 +711,17 @@ const P5GridControlPanel: React.FC = () => {
                       value={[settings.shapeSizePercent3D[settings.shapeType].radius]}
                       onValueChange={(value) => setSettings(prev => ({
                         ...prev,
-                        shapeSizePercent3D: { 
-                          ...prev.shapeSizePercent3D, 
-                          [settings.shapeType]: { ...prev.shapeSizePercent3D[settings.shapeType as Shape3DType], radius: value[0] } 
+                        shapeSizePercent3D: {
+                          ...prev.shapeSizePercent3D,
+                          [settings.shapeType]: { ...prev.shapeSizePercent3D[settings.shapeType], radius: value[0] }
                         }
                       }))}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor={`${settings.shapeType}Height`}>{settings.shapeType === 'cylinder' ? 'Cylinder' : 'Cone'} Height: {settings.shapeSizePercent3D[settings.shapeType].height}%</Label>
+                    <Label htmlFor={`${settings.shapeType}Height`}>
+                      {settings.shapeType === 'cylinder' ? 'Cylinder' : 'Cone'} Height: {settings.shapeSizePercent3D[settings.shapeType].height}%
+                    </Label>
                     <Slider
                       id={`${settings.shapeType}Height`}
                       min={1}
@@ -663,9 +730,9 @@ const P5GridControlPanel: React.FC = () => {
                       value={[settings.shapeSizePercent3D[settings.shapeType].height]}
                       onValueChange={(value) => setSettings(prev => ({
                         ...prev,
-                        shapeSizePercent3D: { 
-                          ...prev.shapeSizePercent3D, 
-                          [settings.shapeType]: { ...prev.shapeSizePercent3D[settings.shapeType as Shape3DType], height: value[0] } 
+                        shapeSizePercent3D: {
+                          ...prev.shapeSizePercent3D,
+                          [settings.shapeType]: { ...prev.shapeSizePercent3D[settings.shapeType], height: value[0] }
                         }
                       }))}
                     />
