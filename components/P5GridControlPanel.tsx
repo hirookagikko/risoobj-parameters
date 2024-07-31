@@ -1,3 +1,5 @@
+type PatternType = 'stripe' | 'stripeCircle' | 'stripePolygon' | 'stripeRadial' | 'wave' | 'dot' | 'checked' | 'cross' | 'triangle' | 'noise' | 'noiseGrad';
+
 'use client';
 declare const PTN: any;
 
@@ -1011,7 +1013,7 @@ const P5GridControlPanel: React.FC = () => {
               {/* パターンタイプの選択 */}
               <div className="space-y-2">
                 <Label htmlFor="patternType">Pattern Type</Label>
-                <Select value={settings.patternType} onValueChange={(value) => setSettings(prev => ({ ...prev, patternType: value }))}>
+                <Select value={settings.patternType} onValueChange={(value: PatternType) => setSettings(prev => ({ ...prev, patternType: value }))}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select pattern type" />
                   </SelectTrigger>
