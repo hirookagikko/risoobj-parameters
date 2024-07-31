@@ -710,7 +710,10 @@ const P5GridControlPanel: React.FC = () => {
                         ...prev,
                         shapeSizePercent3D: is3DShape(settings.shapeType) ? {
                           ...prev.shapeSizePercent3D,
-                          [settings.shapeType]: { ...prev.shapeSizePercent3D[settings.shapeType], radius: value[0] }
+                          [settings.shapeType]: { 
+                            ...(prev.shapeSizePercent3D[settings.shapeType] as { radius: number; height: number }), 
+                            radius: value[0] 
+                          }
                         } : prev.shapeSizePercent3D
                       }))}
                     />
@@ -729,7 +732,10 @@ const P5GridControlPanel: React.FC = () => {
                         ...prev,
                         shapeSizePercent3D: is3DShape(settings.shapeType) ? {
                           ...prev.shapeSizePercent3D,
-                          [settings.shapeType]: { ...prev.shapeSizePercent3D[settings.shapeType], height: value[0] }
+                          [settings.shapeType]: { 
+                            ...(prev.shapeSizePercent3D[settings.shapeType] as { radius: number; height: number }), 
+                            height: value[0] 
+                          }
                         } : prev.shapeSizePercent3D
                       }))}
                     />
