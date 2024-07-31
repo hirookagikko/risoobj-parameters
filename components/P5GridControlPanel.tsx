@@ -28,7 +28,9 @@ declare global {
 }
 
 // Shape types
+type Shape2DType = 'circle' | 'square' | 'polygon' | 'zigzag';
 type Shape3DType = 'sphere' | 'box' | 'torus' | 'cylinder' | 'cone';
+type ShapeType = Shape2DType | Shape3DType;
 
 // 型ガード関数
 function is3DShape(shape: ShapeType): shape is Shape3DType {
