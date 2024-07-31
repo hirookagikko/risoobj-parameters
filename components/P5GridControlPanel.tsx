@@ -4,6 +4,8 @@ declare const PTN: any;
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import p5 from 'p5';
 
+type Shape3DType = 'sphere' | 'box' | 'torus' | 'cylinder' | 'cone';
+
 // shadcn/ui コンポーネントのインポート
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -35,7 +37,7 @@ const P5GridControlPanel: React.FC = () => {
     useOrtho: false,
     columns: 5,
     rows: 5,
-    shapeType: 'circle',
+    shapeType: 'circle' as 'circle' | 'square' | 'polygon' | 'zigzag' | Shape3DType,
     shapePolygonSides: 3,
     shapePolygonRadius: 100,
     shapeSizePercent: 80,
@@ -646,7 +648,7 @@ const P5GridControlPanel: React.FC = () => {
                         ...prev,
                         shapeSizePercent3D: { 
                           ...prev.shapeSizePercent3D, 
-                          [settings.shapeType]: { ...prev.shapeSizePercent3D[settings.shapeType], radius: value[0] } 
+                          [settings.shapeType]: { ...prev.shapeSizePercent3D[settings.shapeType as Shape3DType], radius: value[0] } 
                         }
                       }))}
                     />
@@ -663,7 +665,7 @@ const P5GridControlPanel: React.FC = () => {
                         ...prev,
                         shapeSizePercent3D: { 
                           ...prev.shapeSizePercent3D, 
-                          [settings.shapeType]: { ...prev.shapeSizePercent3D[settings.shapeType], height: value[0] } 
+                          [settings.shapeType]: { ...prev.shapeSizePercent3D[settings.shapeType as Shape3DType], height: value[0] } 
                         }
                       }))}
                     />
