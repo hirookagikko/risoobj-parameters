@@ -28,16 +28,11 @@ declare global {
 }
 
 // Shape types
-type Shape2DType = 'circle' | 'square' | 'polygon' | 'zigzag';
 type Shape3DType = 'sphere' | 'box' | 'torus' | 'cylinder' | 'cone';
-type ShapeType = Shape2DType | Shape3DType;
 
-interface Shape3DSize {
-  sphere: number;
-  box: { width: number; height: number; depth: number };
-  torus: { radius: number; tubeRadius: number };
-  cylinder: { radius: number; height: number };
-  cone: { radius: number; height: number };
+// 型ガード関数
+function is3DShape(shape: ShapeType): shape is Shape3DType {
+  return ['sphere', 'box', 'torus', 'cylinder', 'cone'].includes(shape);
 }
 
 const P5GridControlPanel: React.FC = () => {
@@ -701,39 +696,39 @@ const P5GridControlPanel: React.FC = () => {
                 <>
                   <div className="space-y-2">
                     <Label htmlFor={`${settings.shapeType}Radius`}>
-                      {settings.shapeType === 'cylinder' ? 'Cylinder' : 'Cone'} Radius: {settings.shapeSizePercent3D[settings.shapeType].radius}%
+                      {settings.shapeType === 'cylinder' ? 'Cylinder' : 'Cone'} Radius: {is3DShape(settings.shapeType) ? settings.shapeSizePercent3D[settings.shapeType].radius : 0}%
                     </Label>
                     <Slider
                       id={`${settings.shapeType}Radius`}
                       min={1}
                       max={200}
                       step={1}
-                      value={[settings.shapeSizePercent3D[settings.shapeType].radius]}
+                      value={[is3DShape(settings.shapeType) ? settings.shapeSizePercent3D[settings.shapeType].radius : 0]}
                       onValueChange={(value) => setSettings(prev => ({
                         ...prev,
-                        shapeSizePercent3D: {
+                        shapeSizePercent3D: is3DShape(settings.shapeType) ? {
                           ...prev.shapeSizePercent3D,
                           [settings.shapeType]: { ...prev.shapeSizePercent3D[settings.shapeType], radius: value[0] }
-                        }
+                        } : prev.shapeSizePercent3D
                       }))}
                     />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor={`${settings.shapeType}Height`}>
-                      {settings.shapeType === 'cylinder' ? 'Cylinder' : 'Cone'} Height: {settings.shapeSizePercent3D[settings.shapeType].height}%
+                      {settings.shapeType === 'cylinder' ? 'Cylinder' : 'Cone'} Height: {is3DShape(settings.shapeType) ? settings.shapeSizePercent3D[settings.shapeType].height : 0}%
                     </Label>
                     <Slider
                       id={`${settings.shapeType}Height`}
                       min={1}
                       max={200}
                       step={1}
-                      value={[settings.shapeSizePercent3D[settings.shapeType].height]}
+                      value={[is3DShape(settings.shapeType) ? settings.shapeSizePercent3D[settings.shapeType].height : 0]}
                       onValueChange={(value) => setSettings(prev => ({
                         ...prev,
-                        shapeSizePercent3D: {
+                        shapeSizePercent3D: is3DShape(settings.shapeType) ? {
                           ...prev.shapeSizePercent3D,
                           [settings.shapeType]: { ...prev.shapeSizePercent3D[settings.shapeType], height: value[0] }
-                        }
+                        } : prev.shapeSizePercent3D
                       }))}
                     />
                   </div>
